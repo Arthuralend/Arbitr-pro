@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Избранные дела КАД</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e0a100' d='M12 2l3 6.9 7.5.6-5.7 5 1.7 7.4L12 18l-6.5 3.9 1.7-7.4-5.7-5 7.5-.6z'/></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="brand">★ Избранные дела <span>kad.arbitr.ru</span></div>
+  <input id="q" type="search" placeholder="Поиск: номер, название, должник, ИНН, заметки…  ( / )">
+  <div class="top-actions">
+    <button class="primary" id="btn-add" title="Добавить (N)">+ Добавить</button>
+    <button id="btn-refresh-all" title="Запросить свежие данные по всем делам">⟳ Обновить все</button>
+    <button id="btn-settings" title="Настройки">⚙</button>
+  </div>
+</header>
+<div id="job" class="job hidden"></div>
+
+<nav class="tabs">
+  <button data-tab="list" class="active">Избранное <b id="cnt-all"></b></button>
+  <button data-tab="feed">Лента изменений <b id="cnt-new" class="badge-new"></b></button>
+  <button data-tab="hearings">Заседания</button>
+  <button data-tab="search">Найти дела по участнику</button>
+  <button data-tab="backup">Резервные копии</button>
+</nav>
+
+<main>
+  <!-- Избранное -->
+  <section id="tab-list" class="tab">
+    <aside class="filters">
+      <div class="group">
+        <label><input type="radio" name="view" value="active" checked> Все активные</label>
+        <label><input type="radio" name="view" value="new"> Есть новое</label>
+        <label><input type="radio" name="view" value="pinned"> Закреплённые</label>
+        <label><input type="radio" name="view" value="archived"> Архив</label>
+        <label><input type="radio" name="view" value="all"> Все, включая архив</label>
+      </div>
+      <div class="group">
+        <h4>Тип</h4>
+        <select id="f-type"><option value="">Любой</option><option value="bankruptcy">Банкротные</option>
+          <option value="civil">Гражданские</option><option value="admin">Административные</option></select>
+      </div>
+      <div class="group">
+        <h4>Стадия</h4>
+        <select id="f-stage"><option value="">Любая</option></select>
+      </div>
+      <div class="group">
+        <h4>Метки</h4>
+        <div id="f-tags" class="tag-list"></div>
+      </div>
+      <div class="group">
+        <h4>Сортировка</h4>
+        <select id="sort">
+          <option value="added">Сначала недавно добавленные</option>
+          <option value="event">По последнему событию</option>
+          <option value="hearing">По ближайшему заседанию</option>
+          <option value="title">По названию</option>
+          <option value="number">По номеру дела</option>
+        </select>
+      </div>
+      <button id="btn-seen-all" class="link">Отметить всё как просмотренное</button>
+    </aside>
+    <div class="list-wrap">
+      <div id="empty" class="empty hidden">
+        <p>В избранном пока нет дел.</p>
+        <p>Нажмите <b>+ Добавить</b> и вставьте номера дел (например <code>А40-123456/2024</code>) или ссылки на kad.arbitr.ru.</p>
+      </div>
+      <div id="list" class="list"></div>
+    </div>
+  </section>
+
+  <!-- Лента -->
+  <section id="tab-feed" class="tab hidden">
+    <p class="hint">Новые документы и события по делам из избранного, найденные при обновлении.</p>
+    <div id="feed"></div>
+  </section>
+
+  <!-- Заседания -->
+  <section id="tab-hearings" class="tab hidden">
+    <div class="row-between">
+      <p class="hint">Заседания по активным делам. Файл .ics можно открыть в Google Календаре, Outlook или на iPhone — напоминание за сутки.</p>
+      <a class="button" href="/api/export?format=ics">Скачать в календарь (.ics)</a>
+    </div>
+    <label class="inline"><input type="checkbox" id="h-past"> Показывать прошедшие</label>
+    <div id="hearings"></div>
+  </section>
+
+  <!-- Поиск по участнику -->
+  <section id="tab-search" class="tab hidden">
+    <form id="search-form" class="search-form">
+      <input name="participant" required placeholder="ИНН, ФИО или название организации">
+      <select name="case_type"><option value="B">Только банкротные</option><option value="">Все типы</option></select>
+      <button class="primary">Найти</button>
+    </form>
+    <p class="hint">Поиск идёт через выбранный в настройках сервис и списывает с баланса стоимость одного запроса.</p>
+    <div id="search-res"></div>
+  </section>
+
+  <!-- Резервные копии -->
+  <section id="tab-backup" class="tab hidden">
+    <div class="cards">
+      <div class="card">
+        <h3>Сохранить копию</h3>
+        <p>Полная копия: дела, ваши названия, метки, заметки, стадии и загруженные данные. Ключи API в копию не попадают.</p>
+        <a class="button primary" href="/api/export?format=json">Скачать копию (.json)</a>
+        <h4>Другие форматы</h4>
+        <a class="button" href="/api/export?format=csv">Таблица Excel (.csv)</a>
+        <a class="button" href="/api/export?format=txt">Только номера дел (.txt)</a>
+        <button id="btn-copy-numbers">Скопировать номера</button>
+      </div>
+      <div class="card">
+        <h3>Восстановить из файла</h3>
+        <p>Выберите файл .json, сохранённый этой программой.</p>
+        <input type="file" id="import-file" accept=".json,application/json">
+        <label class="inline"><input type="radio" name="imode" value="merge" checked> Объединить с текущим избранным</label>
+        <label class="inline"><input type="radio" name="imode" value="replace"> Заменить текущее избранное (перед этим сохранится копия)</label>
+        <button id="btn-import" class="primary">Восстановить</button>
+      </div>
+      <div class="card wide">
+        <div class="row-between"><h3>Автоматические копии</h3><button id="btn-backup-now">Сделать копию сейчас</button></div>
+        <p>Программа сама сохраняет копию раз в день (хранятся последние 30) в папке профиля <code>data/backups</code>.</p>
+        <table id="backups" class="table"></table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Карточка дела -->
+<div id="drawer" class="drawer hidden">
+  <div class="drawer-bg" data-close></div>
+  <div class="drawer-panel" id="drawer-panel"></div>
+</div>
+
+<!-- Окно добавления -->
+<dialog id="dlg-add">
+  <form method="dialog" id="add-form">
+    <h3>Добавить в избранное</h3>
+    <label>Номера дел или ссылки kad.arbitr.ru — по одному в строке или через запятую
+      <textarea name="text" rows="6" required placeholder="А40-123456/2024&#10;А41-7890/2025&#10;https://kad.arbitr.ru/Card/…"></textarea></label>
+    <label>Своё название (необязательно, только для одного дела — иначе возьмётся автоматически из дела)
+      <input name="title"></label>
+    <label>Метки через запятую (необязательно)
+      <input name="tags" placeholder="клиент Иванов, кредитор"></label>
+    <label class="inline"><input type="checkbox" name="fetch" checked> Сразу загрузить данные по делам</label>
+    <div class="dlg-actions"><button value="cancel" formnovalidate>Отмена</button><button class="primary" value="ok">Добавить</button></div>
+  </form>
+</dialog>
+
+<!-- Настройки -->
+<dialog id="dlg-settings">
+  <form method="dialog" id="settings-form">
+    <h3>Настройки</h3>
+    <label>Источник данных
+      <select name="provider">
+        <option value="api-cloud">api-cloud.ru (основной)</option>
+        <option value="api-assist">api-assist.com</option>
+        <option value="demo">Демо — тестовые данные без интернета</option>
+      </select></label>
+    <label>Токен api-cloud.ru (32 символа, из личного кабинета)
+      <input name="token_api-cloud" autocomplete="off" placeholder="не изменять"></label>
+    <label>Ключ api-assist.com
+      <input name="token_api-assist" autocomplete="off" placeholder="не изменять"></label>
+    <p class="hint">Ключи хранятся только на этом компьютере, в папке профиля. Оставьте поле пустым, чтобы не менять сохранённый ключ.</p>
+    <div class="dlg-actions"><button value="cancel" formnovalidate>Отмена</button><button class="primary" value="ok">Сохранить</button></div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>
