@@ -16,6 +16,11 @@ screencapture -x diag/app.png || echo "screencapture failed" >> diag/selftest.tx
       -d '{"participant":"Ромашка","case_type":"B"}' | head -c 400; echo
   echo "== log.txt:"; cat diag/data/log.txt 2>/dev/null
 } >> diag/selftest.txt
+# режим «kad.arbitr.ru напрямую»: проверяем, что окно сайта отвечает программе
+# (с серверов GitHub в США сайт отдаёт 451 — это тоже ответ, значит связка работает)
+curl -s -X POST localhost:8765/api/settings -H 'Content-Type: application/json' -d '{"provider":"kad"}' > /dev/null
+KAD=$(curl -s -m 200 -X POST localhost:8765/api/search -H 'Content-Type: application/json' -d '{"participant":"7707083893","case_type":""}' | head -c 300)
+echo "::notice title=kad-mode::$KAD"
 kill $PID 2>/dev/null
 # короткий итог в аннотациях запуска: коды ответов, шаги самопроверки, ошибки программы
 echo "::notice title=selftest-http::$(head -1 diag/selftest.txt) search_ok=$(grep -c '"number"' diag/selftest.txt)"

@@ -11,6 +11,8 @@ import threading
 import webbrowser
 
 import app
+import core
+import kadsite
 
 APP_NAME = "Arbitr-pro"
 
@@ -32,7 +34,7 @@ def main():
     if getattr(sys, "frozen", False):
         # у приложения без терминала ошибки пишем в файл
         sys.stdout = sys.stderr = open(os.path.join(data_dir(), "log.txt"), "a", buffering=1, encoding="utf-8")
-    server = app.create_server(data_dir(), int(os.environ.get("ARBITR_PORT", "0")))
+    server = app.create_server(data_dir(), int(os.environ.get("ARBITR_PORT", "0")), default_provider="demo" if os.environ.get("ARBITR_SELFTEST") else "kad")
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -45,8 +47,43 @@ def main():
     webview.settings["ALLOW_DOWNLOADS"] = True  # экспорт копий, CSV, .ics
     if os.environ.get("ARBITR_SELFTEST"):
         url += "#selftest"
-    webview.create_window("Избранные дела КАД", url, width=1280, height=850, min_size=(380, 500),
-                          text_select=True)
+    main_win = webview.create_window("Избранные дела КАД", url, width=1280, height=850, min_size=(380, 500),
+                                     text_select=True)
+
+    # скрытое окно сайта: через него программа получает данные без API;
+    # его можно показать (пройти проверку, искать дела и добавлять их кнопкой ★)
+    store, jobs = server.store, server.jobs
+
+    class KadApi:
+        def add_case(self, url):
+            entries, _ = core.parse_entries(url)
+            if not entries:
+                return "Не удалось распознать дело"
+            cid, created = store.add(entries[0])
+            jobs.start([cid])
+            return "★ Добавлено в избранное" if created else "★ Уже в избранном"
+
+    kad_win = webview.create_window("kad.arbitr.ru", kadsite.HOME, width=1200, height=850, hidden=True,
+                                    js_api=KadApi())
+    kadsite.BRIDGE = kadsite.Bridge(kad_win, os.path.join(data_dir(), "kad-debug"))
+    quitting = []
+
+    def on_kad_loaded():
+        kad_win.evaluate_js(kadsite.STAR_JS)
+
+    def on_kad_closing():
+        if quitting:
+            return True
+        kad_win.hide()  # закрытие окна сайта только прячет его — оно нужно для работы
+        return False
+
+    def on_main_closed():
+        quitting.append(1)
+        kad_win.destroy()
+
+    kad_win.events.loaded += on_kad_loaded
+    kad_win.events.closing += on_kad_closing
+    main_win.events.closed += on_main_closed
     webview.start()
 
 

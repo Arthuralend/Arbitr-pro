@@ -190,8 +190,9 @@ CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT);
 
 
 class Store:
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, default_provider="demo"):
         self.data_dir = data_dir
+        self.default_provider = default_provider
         self.backup_dir = os.path.join(data_dir, "backups")
         os.makedirs(self.backup_dir, exist_ok=True)
         self.lock = threading.RLock()
@@ -205,7 +206,7 @@ class Store:
     def settings(self):
         with self.lock:
             s = {r["k"]: r["v"] for r in self.db.execute("SELECT k, v FROM settings")}
-        s.setdefault("provider", "demo")
+        s.setdefault("provider", self.default_provider)
         return s
 
     def save_settings(self, values):
@@ -426,16 +427,16 @@ class Store:
         """Ежедневная копия в data/backups (одна на день, хранятся последние 30)."""
         name = f"{label}-{datetime.now():%Y-%m-%d}.json" if label == "auto" else f"{label}-{datetime.now():%Y-%m-%d_%H%M%S}.json"
         path = os.path.join(self.backup_dir, name)
-        with self.lock:
+        with self.lock:  # копии из разных потоков не должны писать один файл одновременно
             count = self.db.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
-        if count == 0 and not force:
-            return None
-        with open(path + ".tmp", "w", encoding="utf-8") as f:
-            json.dump(self.backup_dict(), f, ensure_ascii=False, indent=1)
-        os.replace(path + ".tmp", path)
-        autos = sorted(p for p in os.listdir(self.backup_dir) if p.startswith("auto-"))
-        for old in autos[:-KEEP_AUTO_BACKUPS]:
-            os.remove(os.path.join(self.backup_dir, old))
+            if count == 0 and not force:
+                return None
+            with open(path + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(self.backup_dict(), f, ensure_ascii=False, indent=1)
+            os.replace(path + ".tmp", path)
+            autos = sorted(p for p in os.listdir(self.backup_dir) if p.startswith("auto-"))
+            for old in autos[:-KEEP_AUTO_BACKUPS]:
+                os.remove(os.path.join(self.backup_dir, old))
         return name
 
     def list_backups(self):

@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlparse
 
 import core
+import kadsite
 import providers
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -219,7 +220,7 @@ def make_handler(store, jobs):
             if p == ["settings"]:
                 if method == "POST":
                     store.save_settings(self.body())
-                return self.send_json(store.public_settings())
+                return self.send_json({**store.public_settings(), "app": kadsite.BRIDGE is not None})
 
             if p == ["export"]:
                 fmt = q.get("format", "json")
@@ -247,9 +248,15 @@ def make_handler(store, jobs):
                 print(f"[{core.now()}] Ошибка в окне программы: {b.get('message')} {b.get('where', '')}", flush=True)
                 return self.send_json({"ok": True})
             if p == ["open-folder"] and method == "POST":
+                folder = store.data_dir if self.body().get("which") == "data" else store.backup_dir
                 opener = {"darwin": ["open"], "win32": ["explorer"]}.get(sys.platform, ["xdg-open"])
-                subprocess.Popen(opener + [store.backup_dir])
-                return self.send_json({"path": store.backup_dir})
+                subprocess.Popen(opener + [folder])
+                return self.send_json({"path": folder})
+            if p == ["kad-window"] and method == "POST":
+                if kadsite.BRIDGE is None:
+                    raise ValueError("Окно kad.arbitr.ru есть только в приложении")
+                kadsite.BRIDGE.show()
+                return self.send_json({"ok": True})
             if p == ["backups"] and method == "POST":
                 return self.send_json({"name": store.auto_backup(force=True, label="manual")})
             if len(p) == 3 and p[0] == "backups" and p[2] == "restore" and method == "POST":
@@ -263,13 +270,15 @@ def make_handler(store, jobs):
     return Handler
 
 
-def create_server(data_dir, port):
+def create_server(data_dir, port, default_provider="demo"):
     """Создаёт сервер; port=0 — выбрать любой свободный."""
     os.makedirs(data_dir, exist_ok=True)
-    store = core.Store(data_dir)
+    store = core.Store(data_dir, default_provider)
     store.auto_backup()
     jobs = Jobs(store)
-    return ThreadingHTTPServer(("127.0.0.1", port), make_handler(store, jobs))
+    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(store, jobs))
+    server.store, server.jobs = store, jobs
+    return server
 
 
 def main():

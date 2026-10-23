@@ -14,6 +14,7 @@
   <div class="top-actions">
     <button class="primary" id="btn-add" title="Добавить (N)">+ Добавить</button>
     <button id="btn-refresh-all" title="Запросить свежие данные по всем делам">⟳ Обновить все</button>
+    <button id="btn-kad" class="hidden" title="Открыть сайт: искать дела и добавлять кнопкой ★">Окно kad.arbitr.ru</button>
     <button id="btn-settings" title="Настройки">⚙</button>
   </div>
 </header>
@@ -95,7 +96,7 @@
       <select name="case_type"><option value="B">Только банкротные</option><option value="">Все типы</option></select>
       <button class="primary">Найти</button>
     </form>
-    <p class="hint">Поиск идёт через выбранный в настройках сервис и списывает с баланса стоимость одного запроса.</p>
+    <p class="hint">Поиск идёт через источник, выбранный в настройках (у платных API списывается стоимость запроса).</p>
     <div id="search-res"></div>
   </section>
 
@@ -118,6 +119,12 @@
         <label class="inline"><input type="radio" name="imode" value="merge" checked> Объединить с текущим избранным</label>
         <label class="inline"><input type="radio" name="imode" value="replace"> Заменить текущее избранное (перед этим сохранится копия)</label>
         <button id="btn-import" class="primary">Восстановить</button>
+      </div>
+      <div class="card">
+        <h3>Если что-то не работает</h3>
+        <p>Откройте папку программы и пришлите разработчику файл <code>log.txt</code> и папку <code>kad-debug</code>
+          (последние ответы сайта). Личных данных и ключей там нет.</p>
+        <button id="btn-open-data">Открыть папку программы</button>
       </div>
       <div class="card wide">
         <div class="row-between"><h3>Автоматические копии</h3><button id="btn-backup-now">Сделать копию сейчас</button></div>
@@ -155,14 +162,17 @@
     <h3>Настройки</h3>
     <label>Источник данных
       <select name="provider">
-        <option value="api-cloud">api-cloud.ru (основной)</option>
-        <option value="api-assist">api-assist.com</option>
+        <option value="kad">kad.arbitr.ru напрямую — без API и ключей (только в приложении)</option>
+        <option value="api-cloud">api-cloud.ru (платный API)</option>
+        <option value="api-assist">api-assist.com (платный API)</option>
         <option value="demo">Демо — тестовые данные без интернета</option>
       </select></label>
     <label>Токен api-cloud.ru (32 символа, из личного кабинета)
       <input name="token_api-cloud" autocomplete="off" placeholder="не изменять"></label>
     <label>Ключ api-assist.com
       <input name="token_api-assist" autocomplete="off" placeholder="не изменять"></label>
+    <p class="hint">Режиму «kad.arbitr.ru напрямую» ключи не нужны. Если сайт попросит проверку «я не робот», откроется его окно.
+      VPN лучше выключить — из-за рубежа сайт не отвечает.</p>
     <p class="hint">Ключи хранятся только на этом компьютере, в папке профиля. Оставьте поле пустым, чтобы не менять сохранённый ключ.</p>
     <div class="dlg-actions"><button value="cancel" formnovalidate>Отмена</button><button class="primary" value="ok">Сохранить</button></div>
   </form>

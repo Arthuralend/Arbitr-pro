@@ -476,6 +476,9 @@ function init() {
     } catch (e) { toast("Не удалось восстановить: " + e.message, 6000); }
   };
   $("#btn-backup-now").onclick = async () => { const r = await api("backups", { body: {} }); toast("Сохранено: " + r.name); renderBackups(); };
+  $("#btn-open-data").onclick = () => api("open-folder", { body: { which: "data" } }).catch((e) => toast(e.message));
+  $("#btn-kad").onclick = () => api("kad-window", { body: {} }).catch((e) => toast(e.message));
+  api("settings").then((s) => $("#btn-kad").classList.toggle("hidden", !s.app));
   $("#btn-open-folder").onclick = () => api("open-folder", { body: {} }).catch((e) => toast(e.message));
   $("#btn-copy-numbers").onclick = () => navigator.clipboard.writeText(state.cases.map((c) => c.number).filter(Boolean).join("\n"))
     .then(() => toast("Номера скопированы"));
