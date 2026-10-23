@@ -242,6 +242,10 @@ def make_handler(store, jobs):
 
             if p == ["backups"] and method == "GET":
                 return self.send_json(store.list_backups())
+            if p == ["client-error"] and method == "POST":
+                b = self.body()
+                print(f"[{core.now()}] Ошибка в окне программы: {b.get('message')} {b.get('where', '')}", flush=True)
+                return self.send_json({"ok": True})
             if p == ["open-folder"] and method == "POST":
                 opener = {"darwin": ["open"], "win32": ["explorer"]}.get(sys.platform, ["xdg-open"])
                 subprocess.Popen(opener + [store.backup_dir])

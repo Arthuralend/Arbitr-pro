@@ -6,6 +6,14 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const STAGES = ["Наблюдение", "Финансовое оздоровление", "Внешнее управление", "Конкурсное производство",
   "Реструктуризация долгов", "Реализация имущества", "Мировое соглашение", "Завершено", "Прекращено"];
 
+// ошибки интерфейса — в журнал программы (log.txt) и на экран
+function reportError(message, where) {
+  fetch("/api/client-error", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: String(message), where: where || "" }) }).catch(() => {});
+}
+window.addEventListener("error", (e) => reportError(e.message, `${e.filename}:${e.lineno}`));
+window.addEventListener("unhandledrejection", (e) => { reportError(e.reason?.message || e.reason); toast(e.reason?.message || String(e.reason), 6000); });
+
 const state = { cases: [], tab: "list", tags: new Set(), openId: null };
 
 // ------------------------------------------------------------ утилиты
@@ -485,3 +493,32 @@ function init() {
 }
 
 init();
+
+// ------------------------------------------------------------ самопроверка (запуск с адресом #selftest)
+
+async function selftest() {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const log = (m) => reportError("SELFTEST " + m);
+  try {
+    await sleep(1500);
+    $("#btn-add").click();
+    $("#add-form").text.value = "А40-77777/2025";
+    $("#dlg-add").close("ok");
+    await sleep(4000);
+    log("cases=" + $$(".item").length);
+    $(".item").click();
+    await sleep(2000);
+    log("drawer=" + !!$("#d-title") + " events=" + $$(".ev").length);
+    closeDrawer();
+    setTab("search");
+    $("#search-form input").value = "Ромашка";
+    $("#search-form button").click();
+    await sleep(3000);
+    log("search=" + $$("#search-res .s-item").length);
+    setTab("list");
+    log("done");
+  } catch (e) {
+    log("FAIL " + e.message);
+  }
+}
+if (location.hash === "#selftest") selftest();

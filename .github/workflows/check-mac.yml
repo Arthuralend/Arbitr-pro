@@ -1,0 +1,39 @@
+name: Проверка на Mac
+
+# Собирает приложение, прогоняет самопроверку интерфейса и пробует kad.arbitr.ru напрямую.
+# Результаты остаются в журнале запуска; по шагам видно, что работает, а что нет.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["README.md"]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyinstaller pywebview pillow
+      - name: Сборка .app
+        run: |
+          pyinstaller --noconfirm --windowed --name "Arbitr-pro" --icon assets/icon.png \
+            --add-data "static:static" --osx-bundle-identifier ru.arbitrpro.favorites desktop.py
+      - name: "Приложение: самопроверка интерфейса"
+        continue-on-error: true
+        run: ci/mac_check.sh
+      - name: "kad.arbitr.ru: разведка"
+        continue-on-error: true
+        timeout-minutes: 10
+        run: python ci/kad_probe.py
+      - name: "kad.arbitr.ru: сайт открылся"
+        continue-on-error: true
+        run: python -c "import json,sys; r=json.load(open('diag/kad_report.json')); sys.exit(0 if r.get('home',{}).get('title') else 1)"
+      - name: "kad.arbitr.ru: поиск отвечает"
+        continue-on-error: true
+        run: python -c "import json,sys; r=json.load(open('diag/kad_report.json')); sys.exit(0 if r.get('found_cards') else 1)"
+      - name: "kad.arbitr.ru: документы дела отдаются"
+        continue-on-error: true
+        run: test -s diag/documents.json
