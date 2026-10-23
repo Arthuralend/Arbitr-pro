@@ -98,7 +98,18 @@ def run(win):
         report["exception"] = repr(e)
     finally:
         save("kad_report.json", report)
-        print({k: (v if k in ("found_numbers", "documents", "exception") else bool(v)) for k, v in report.items()})
+        home = report.get("home") or {}
+        summary = {
+            "home_title": home.get("title"), "home_url": home.get("url"),
+            "home_text": re.sub(r"\s+", " ", home.get("text") or "")[:200],
+            "cookie_names": home.get("cookie_names"),
+            "search_side": report.get("search_side"), "search_bankrupt": report.get("search_bankrupt"),
+            "search_number": report.get("search_number"),
+            "cards": len(report.get("found_cards") or []), "card_title": (report.get("card") or {}).get("title"),
+            "documents": report.get("documents"), "exception": report.get("exception"),
+        }
+        for k, v in summary.items():
+            print(f"::notice title=kad-{k}::{json.dumps(v, ensure_ascii=False)[:400]}")
         win.destroy()
 
 
