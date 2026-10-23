@@ -1,10 +1,11 @@
 name: Сборка для Mac
 
 # Собирает Arbitr-pro.app (без Python у пользователя) и выкладывает .dmg в Releases.
-# Новая версия: git tag v1.0.1 && git push origin v1.0.1
+# Новая версия выпускается автоматически при каждом изменении программы в ветке main.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths-ignore: ["README.md"]
   workflow_dispatch:
 
 permissions:
@@ -65,7 +66,7 @@ jobs:
 
   release:
     needs: build
-    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -74,6 +75,10 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Arbitr-pro 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
           files: "*.dmg"
           body: |
             **Скачать для Mac:**

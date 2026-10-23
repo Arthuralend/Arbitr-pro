@@ -73,6 +73,6 @@
 
 ## Сборка новой версии для Mac
 
-Приложение собирает GitHub Actions (`.github/workflows/build-mac.yml`). Чтобы выпустить новую версию,
-поставьте тег: `git tag v1.0.1 && git push origin v1.0.1`. Через 5–10 минут файлы .dmg
-появятся в Releases, и ссылки выше начнут вести на них.
+Приложение собирает GitHub Actions (`.github/workflows/build-mac.yml`) при каждом изменении в ветке
+`main`, а также вручную: Actions → «Сборка для Mac» → Run workflow. Через 5–10 минут новая версия
+появляется в Releases, и ссылки выше автоматически ведут на неё.
