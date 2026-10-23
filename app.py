@@ -7,6 +7,8 @@
 import argparse
 import json
 import os
+import subprocess
+import sys
 import threading
 import traceback
 import webbrowser
@@ -18,7 +20,8 @@ import core
 import providers
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-STATIC = os.path.join(HERE, "static")
+# в собранном приложении (PyInstaller) файлы лежат в sys._MEIPASS
+STATIC = os.path.join(getattr(sys, "_MEIPASS", HERE), "static")
 
 
 class Jobs:
@@ -239,6 +242,10 @@ def make_handler(store, jobs):
 
             if p == ["backups"] and method == "GET":
                 return self.send_json(store.list_backups())
+            if p == ["open-folder"] and method == "POST":
+                opener = {"darwin": ["open"], "win32": ["explorer"]}.get(sys.platform, ["xdg-open"])
+                subprocess.Popen(opener + [store.backup_dir])
+                return self.send_json({"path": store.backup_dir})
             if p == ["backups"] and method == "POST":
                 return self.send_json({"name": store.auto_backup(force=True, label="manual")})
             if len(p) == 3 and p[0] == "backups" and p[2] == "restore" and method == "POST":
@@ -252,6 +259,15 @@ def make_handler(store, jobs):
     return Handler
 
 
+def create_server(data_dir, port):
+    """Создаёт сервер; port=0 — выбрать любой свободный."""
+    os.makedirs(data_dir, exist_ok=True)
+    store = core.Store(data_dir)
+    store.auto_backup()
+    jobs = Jobs(store)
+    return ThreadingHTTPServer(("127.0.0.1", port), make_handler(store, jobs))
+
+
 def main():
     ap = argparse.ArgumentParser(description="Избранные дела kad.arbitr.ru")
     ap.add_argument("--port", type=int, default=8765)
@@ -259,11 +275,7 @@ def main():
     ap.add_argument("--no-browser", action="store_true")
     args = ap.parse_args()
 
-    os.makedirs(args.data, exist_ok=True)
-    store = core.Store(args.data)
-    store.auto_backup()
-    jobs = Jobs(store)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(store, jobs))
+    server = create_server(args.data, args.port)
     url = f"http://127.0.0.1:{args.port}/"
     print(f"Избранные дела КАД: {url}\nПапка профиля: {os.path.abspath(args.data)}\nОстановить: Ctrl+C")
     if not args.no_browser:

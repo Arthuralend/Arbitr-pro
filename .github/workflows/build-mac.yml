@@ -1,0 +1,87 @@
+name: Сборка для Mac
+
+# Собирает Arbitr-pro.app (без Python у пользователя) и выкладывает .dmg в Releases.
+# Новая версия: git tag v1.0.1 && git push origin v1.0.1
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest      # Apple Silicon (M1–M4)
+            arch: apple-silicon
+          - os: macos-15-intel    # Intel
+            arch: intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Зависимости
+        run: pip install pyinstaller pywebview pillow
+
+      - name: Тесты
+        run: python -m unittest discover tests
+
+      - name: Сборка .app
+        run: |
+          pyinstaller --noconfirm --windowed --name "Arbitr-pro" \
+            --icon assets/icon.png \
+            --add-data "static:static" \
+            --osx-bundle-identifier ru.arbitrpro.favorites \
+            desktop.py
+
+      - name: Проверка запуска
+        run: |
+          # приложение должно подняться и не упасть за 15 секунд
+          "dist/Arbitr-pro.app/Contents/MacOS/Arbitr-pro" &
+          PID=$!
+          sleep 15
+          kill -0 $PID
+          kill $PID || true
+
+      - name: Упаковка .dmg
+        run: |
+          mkdir dmg
+          cp -R "dist/Arbitr-pro.app" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "Arbitr-pro" -srcfolder dmg -ov -format UDZO "Arbitr-pro-mac-${{ matrix.arch }}.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Arbitr-pro-mac-${{ matrix.arch }}
+          path: Arbitr-pro-mac-${{ matrix.arch }}.dmg
+
+  release:
+    needs: build
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: "*.dmg"
+          body: |
+            **Скачать для Mac:**
+            - Apple Silicon (M1, M2, M3, M4 — почти все Mac с 2021 года): `Arbitr-pro-mac-apple-silicon.dmg`
+            - Intel (старые Mac): `Arbitr-pro-mac-intel.dmg`
+
+            Узнать свой процессор:  → «Об этом Mac» → строка «Чип» (Apple M…) или «Процессор» (Intel).
+
+            **Установка:** откройте .dmg и перетащите Arbitr-pro в «Программы».
+            При первом запуске macOS сообщит, что не может проверить разработчика:
+            «Системные настройки» → «Конфиденциальность и безопасность» → внизу «Всё равно открыть».

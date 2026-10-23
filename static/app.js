@@ -468,6 +468,7 @@ function init() {
     } catch (e) { toast("Не удалось восстановить: " + e.message, 6000); }
   };
   $("#btn-backup-now").onclick = async () => { const r = await api("backups", { body: {} }); toast("Сохранено: " + r.name); renderBackups(); };
+  $("#btn-open-folder").onclick = () => api("open-folder", { body: {} }).catch((e) => toast(e.message));
   $("#btn-copy-numbers").onclick = () => navigator.clipboard.writeText(state.cases.map((c) => c.number).filter(Boolean).join("\n"))
     .then(() => toast("Номера скопированы"));
 
